@@ -1,0 +1,20 @@
+[
+    {
+        "port": "COM1",
+        "address": 12,
+        "baudrate": 9600,
+        "bytesize": 8,
+        "stopbit": 1,
+        "parity": "N",
+        "readers": [
+            {
+                "address": 1234,
+                "count": 1
+            },
+            {
+                "address": 1223,
+                "count": 1
+            }
+        ]
+    }
+]
