@@ -6,16 +6,9 @@
 """
 
 import json
-import logging
 
+from loguru import logger
 from pymodbus.client import ModbusSerialClient
-
-# Настройка вывода логов в консоль
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-)
-logger = logging.getLogger(__name__)
 
 
 class ModbusManager:
@@ -30,26 +23,26 @@ class ModbusManager:
         self.config_path = config_path
         self.config = []
         self.clients = {}
-        logger.info("ModbusManager создан, файл конфигурации: %s", config_path)
+        logger.info("ModbusManager создан, файл конфигурации: {}", config_path)
 
     def load_config(self):
         """Читает sensor.json и возвращает список устройств."""
-        logger.info("Загрузка конфигурации из файла %s", self.config_path)
+        logger.info("Загрузка конфигурации из файла {}", self.config_path)
         try:
             with open(self.config_path, "r", encoding="utf-8") as file:
                 self.config = json.load(file)
         except FileNotFoundError:
-            logger.error("Файл конфигурации не найден: %s", self.config_path)
+            logger.error("Файл конфигурации не найден: {}", self.config_path)
             raise
         except json.JSONDecodeError as exc:
-            logger.error("Ошибка разбора JSON: %s", exc)
+            logger.error("Ошибка разбора JSON: {}", exc)
             raise
-        logger.info("Загружено устройств: %d", len(self.config))
+        logger.info("Загружено устройств: {}", len(self.config))
         return self.config
 
     def connect_all(self):
         """Подключается ко всем устройствам из конфигурации и сохраняет клиентов."""
-        logger.info("Подключение к устройствам (%d шт.)", len(self.config))
+        logger.info("Подключение к устройствам ({} шт.)", len(self.config))
         for index, device in enumerate(self.config):
             client = ModbusSerialClient(
                 port=device["port"],
@@ -62,12 +55,12 @@ class ModbusManager:
             if client.connect():
                 self.clients[index] = client
                 logger.info(
-                    "Устройство %d подключено (порт %s, адрес %s)",
+                    "Устройство {} подключено (порт {}, адрес {})",
                     index, device["port"], device["address"],
                 )
             else:
                 logger.error(
-                    "Не удалось подключиться к устройству %d (порт %s)",
+                    "Не удалось подключиться к устройству {} (порт {})",
                     index, device["port"],
                 )
         return self.clients
@@ -80,13 +73,13 @@ class ModbusManager:
         """
         client = self.clients.get(device_index)
         if client is None:
-            logger.error("Устройство %d не подключено", device_index)
+            logger.error("Устройство {} не подключено", device_index)
             return None
         device_address = self.config[device_index]["address"]
         register_address = reader["address"]
         count = reader.get("count", 1)
         logger.info(
-            "Чтение %d регистров с адреса %d (устройство %d, адрес %d)",
+            "Чтение {} регистров с адреса {} (устройство {}, адрес {})",
             count, register_address, device_index, device_address,
         )
         try:
@@ -99,9 +92,9 @@ class ModbusManager:
                 address=register_address, count=count, device_id=device_address,
             )
         if result.isError():
-            logger.error("Ошибка чтения регистров: %s", result)
+            logger.error("Ошибка чтения регистров: {}", result)
             return None
-        logger.info("Прочитаны значения: %s", result.registers)
+        logger.info("Прочитаны значения: {}", result.registers)
         return result.registers
 
     def read_all(self):
@@ -116,7 +109,7 @@ class ModbusManager:
             for reader in device.get("readers", []):
                 device_data[reader["address"]] = self.read_reader(index, reader)
             data[index] = device_data
-        logger.info("Итоговые данные: %s", data)
+        logger.info("Итоговые данные: {}", data)
         return data
 
     def disconnect_all(self):
@@ -124,7 +117,7 @@ class ModbusManager:
         logger.info("Отключение всех устройств")
         for index, client in self.clients.items():
             client.close()
-            logger.info("Устройство %d отключено", index)
+            logger.info("Устройство {} отключено", index)
         self.clients.clear()
 
 
