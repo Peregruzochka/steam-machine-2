@@ -9,6 +9,8 @@ import json
 
 from loguru import logger
 from pymodbus.client import ModbusSerialClient
+from pymodbus.exceptions import ModbusIOException
+from serial import SerialException
 
 
 class ModbusManager:
@@ -44,15 +46,24 @@ class ModbusManager:
         """Подключается ко всем устройствам из конфигурации и сохраняет клиентов."""
         logger.info("Подключение к устройствам ({} шт.)", len(self.config))
         for index, device in enumerate(self.config):
-            client = ModbusSerialClient(
-                port=device["port"],
-                baudrate=device.get("baudrate", 9600),
-                bytesize=device.get("bytesize", 8),
-                stopbits=device.get("stopbit", 1),
-                parity=device.get("parity", "N"),
-                timeout=3,
-            )
-            if client.connect():
+            try:
+                client = ModbusSerialClient(
+                    port=device["port"],
+                    baudrate=device.get("baudrate", 9600),
+                    bytesize=device.get("bytesize", 8),
+                    stopbits=device.get("stopbit", 1),
+                    parity=device.get("parity", "N"),
+                    timeout=3,
+                )
+                connected = client.connect()
+            except SerialException as exc:
+                # Порт не существует, занят другим процессом или недоступен
+                logger.error(
+                    "Ошибка открытия порта {} у устройства {}: {}",
+                    device["port"], index, exc,
+                )
+                continue
+            if connected:
                 self.clients[index] = client
                 logger.info(
                     "Устройство {} подключено (порт {}, адрес {})",
@@ -83,14 +94,19 @@ class ModbusManager:
             count, register_address, device_index, device_address,
         )
         try:
-            result = client.read_holding_registers(
-                address=register_address, count=count, slave=device_address,
-            )
-        except TypeError:
-            # В pymodbus 3.9+ параметр slave переименован в device_id
-            result = client.read_holding_registers(
-                address=register_address, count=count, device_id=device_address,
-            )
+            try:
+                result = client.read_holding_registers(
+                    address=register_address, count=count, slave=device_address,
+                )
+            except TypeError:
+                # В pymodbus 3.9+ параметр slave переименован в device_id
+                result = client.read_holding_registers(
+                    address=register_address, count=count, device_id=device_address,
+                )
+        except ModbusIOException as exc:
+            # Устройство не ответило после повторных запросов
+            logger.error("Нет ответа от устройства {}: {}", device_address, exc)
+            return None
         if result.isError():
             logger.error("Ошибка чтения регистров: {}", result)
             return None
