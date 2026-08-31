@@ -186,6 +186,78 @@ class ModbusManager:
         logger.info("Прочитаны значения: {}", registers)
         return registers
 
+    def write_input(self, device_index, input_def):
+        """Записывает значение в регистр устройства по описанию input.
+
+        input_def — словарь вида {"address": 1, "function_code": 6,
+        "value": 1, "info": "Назначение"} (функция 6 — запись одного
+        регистра, 16 — запись нескольких).
+        Возвращает True при успехе, иначе False.
+        """
+        client = self.clients.get(device_index)
+        if client is None:
+            logger.error("Устройство {} не подключено", device_index)
+            return False
+        device_address = self.addresses.get(device_index)
+        if device_address is None:
+            logger.error("У устройства {} не определён адрес", device_index)
+            return False
+        register_address = input_def["address"]
+        value = input_def["value"]
+        function = input_def.get("function_code", 6)
+        logger.info(
+            "Запись значения {} в регистр {} функцией {} (устройство {}, адрес {})",
+            value, register_address, function, device_index, device_address,
+        )
+        try:
+            try:
+                if function == 16:
+                    result = client.write_registers(
+                        register_address, [value], slave=device_address,
+                    )
+                else:
+                    result = client.write_register(
+                        register_address, value, slave=device_address,
+                    )
+            except TypeError:
+                # В pymodbus 3.9+ параметр slave переименован в device_id
+                if function == 16:
+                    result = client.write_registers(
+                        register_address, [value], device_id=device_address,
+                    )
+                else:
+                    result = client.write_register(
+                        register_address, value, device_id=device_address,
+                    )
+        except ModbusIOException as exc:
+            # Устройство не ответило после повторных запросов
+            logger.error("Нет ответа от устройства {}: {}", device_address, exc)
+            return False
+        if result.isError():
+            logger.error("Ошибка записи регистра: {}", result)
+            return False
+        logger.info("Значение {} записано в регистр {}", value, register_address)
+        return True
+
+    def write_all(self):
+        """Записывает все inputs с заданным value для всех подключённых устройств.
+
+        Возвращает словарь вида {индекс_устройства: {имя_input: результат}}.
+        """
+        logger.info("Запись inputs для всех устройств")
+        results = {}
+        for index, device in enumerate(self.config):
+            device_results = {}
+            for input_def in device.get("inputs", []):
+                if input_def.get("value") is None:
+                    # Значение не задано — запись не выполняется
+                    continue
+                name = input_def.get("info", input_def["address"])
+                device_results[name] = self.write_input(index, input_def)
+            results[index] = device_results
+        logger.info("Итоги записи: {}", results)
+        return results
+
     def read_all(self):
         """Считывает данные со всех подключённых устройств по всем readers.
 
@@ -215,6 +287,7 @@ if __name__ == "__main__":
     manager.load_config()
     manager.connect_all()
     try:
+        manager.write_all()
         manager.read_all()
     finally:
         manager.disconnect_all()
