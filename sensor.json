@@ -3,7 +3,7 @@
         "info": "Датчик кислорода",
         "port": "COM3",
         "address": 12,
-        "address_register": null,
+        "address_register": 1,
         "baudrate": 9600,
         "bytesize": 8,
         "stopbit": 1,
@@ -64,6 +64,26 @@
                 "info": "pH",
                 "scale": 1,
                 "unit": "pH"
+            }
+        ]
+    },
+    {
+        "info": "Датчик температуры",
+        "port": null,
+        "address": 16,
+        "address_register": null,
+        "baudrate": 9600,
+        "bytesize": 8,
+        "stopbit": 1,
+        "parity": "N",
+        "readers": [
+            {
+                "address": 2200,
+                "count": 2,
+                "function_code": 3,
+                "info": "Значение температуры",
+                "scale": 1,
+                "unit": "°C"
             }
         ]
     }
