@@ -142,5 +142,40 @@
         "parity": "N",
         "readers": [],
         "inputs": []
+    },
+    {
+        "info": "Двойной модуль реле RS485 Modbus RTU 2x",
+        "protocol": "modbus",
+        "port": null,
+        "address": 1,
+        "address_register": 0,
+        "baudrate": 9600,
+        "bytesize": 8,
+        "stopbit": 1,
+        "parity": "N",
+        "readers": [
+            {
+                "address": 0,
+                "count": 2,
+                "function_code": 1,
+                "info": "Состояние реле (реле 1, реле 2)",
+                "scale": 1,
+                "unit": ""
+            }
+        ],
+        "inputs": [
+            {
+                "address": 0,
+                "function_code": 5,
+                "value": false,
+                "info": "Реле 1"
+            },
+            {
+                "address": 1,
+                "function_code": 5,
+                "value": false,
+                "info": "Реле 2"
+            }
+        ]
     }
 ]

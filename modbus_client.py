@@ -129,10 +129,14 @@ class ModbusManager:
     def _read_registers(self, client, function, register_address, count, device_address):
         """Низкоуровневое чтение регистров с обработкой ошибок pymodbus.
 
-        function — 3 (holding) или 4 (input).
-        Возвращает список значений регистров либо None при ошибке.
+        function — 1 (coil), 2 (discrete), 3 (holding) или 4 (input).
+        Возвращает список значений регистров/битов либо None при ошибке.
         """
-        if function == 4:
+        if function == 1:
+            read_method = client.read_coils
+        elif function == 2:
+            read_method = client.read_discrete_inputs
+        elif function == 4:
             read_method = client.read_input_registers
         else:
             read_method = client.read_holding_registers
@@ -153,14 +157,18 @@ class ModbusManager:
         if result.isError():
             logger.error("Ошибка чтения регистров: {}", result)
             return None
+        if function in (1, 2):
+            # Для катушек и дискретных входов pymodbus возвращает биты
+            return list(result.bits[:count])
         return result.registers
 
     def read_reader(self, device_index, reader):
         """Читает регистры одного устройства по описанию reader.
 
         reader — словарь вида {"address": 1234, "count": 1,
-        "function_code": 3 | 4 | "holding" | "input"} (по умолчанию 3).
-        Возвращает список значений регистров либо None при ошибке.
+        "function_code": 1 | 2 | 3 | 4 | "coil" | "discrete" | "holding" | "input"}
+        (по умолчанию 3).
+        Возвращает список значений регистров/битов либо None при ошибке.
         """
         client = self.clients.get(device_index)
         if client is None:
@@ -171,9 +179,9 @@ class ModbusManager:
         count = reader.get("count", 1)
         function = reader.get("function_code", "holding")
         if isinstance(function, str):
-            # Имена функций: holding (3) и input (4)
-            function = {"holding": 3, "input": 4}.get(function.lower())
-        if function not in (3, 4):
+            # Имена функций: coil (1), discrete (2), holding (3), input (4)
+            function = {"coil": 1, "discrete": 2, "holding": 3, "input": 4}.get(function.lower())
+        if function not in (1, 2, 3, 4):
             logger.error("Неизвестный функциональный код: {}", reader.get("function_code"))
             return None
         logger.info(
@@ -187,11 +195,12 @@ class ModbusManager:
         return registers
 
     def write_input(self, device_index, input_def):
-        """Записывает значение в регистр устройства по описанию input.
+        """Записывает значение в регистр/катушку устройства по описанию input.
 
-        input_def — словарь вида {"address": 1, "function_code": 6,
-        "value": 1, "info": "Назначение"} (функция 6 — запись одного
-        регистра, 16 — запись нескольких).
+        input_def — словарь вида {"address": 1, "function_code": 5 | 6 | 16,
+        "value": 1, "info": "Назначение"} (функция 5 — запись катушки,
+        6 — запись одного регистра, 16 — запись нескольких).
+        Для катушки значение трактуется как bool: true — замкнуть, false — разомкнуть.
         Возвращает True при успехе, иначе False.
         """
         client = self.clients.get(device_index)
@@ -211,7 +220,11 @@ class ModbusManager:
         )
         try:
             try:
-                if function == 16:
+                if function == 5:
+                    result = client.write_coil(
+                        register_address, bool(value), slave=device_address,
+                    )
+                elif function == 16:
                     result = client.write_registers(
                         register_address, [value], slave=device_address,
                     )
@@ -221,7 +234,11 @@ class ModbusManager:
                     )
             except TypeError:
                 # В pymodbus 3.9+ параметр slave переименован в device_id
-                if function == 16:
+                if function == 5:
+                    result = client.write_coil(
+                        register_address, bool(value), device_id=device_address,
+                    )
+                elif function == 16:
                     result = client.write_registers(
                         register_address, [value], device_id=device_address,
                     )
