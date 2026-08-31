@@ -1,6 +1,7 @@
 [
     {
         "info": "Датчик кислорода",
+        "protocol": "modbus",
         "port": "COM3",
         "address": 12,
         "address_register": 1,
@@ -21,6 +22,7 @@
     },
     {
         "info": "Датчик температуры и давления",
+        "protocol": "modbus",
         "port": null,
         "address": 1,
         "address_register": null,
@@ -49,6 +51,7 @@
     },
     {
         "info": "Датчик pH",
+        "protocol": "modbus",
         "port": null,
         "address": 1,
         "address_register": 3600,
@@ -69,6 +72,7 @@
     },
     {
         "info": "Датчик температуры",
+        "protocol": "modbus",
         "port": null,
         "address": 16,
         "address_register": 5602,
