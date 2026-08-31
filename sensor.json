@@ -44,5 +44,24 @@
                 "unit": "Па"
             }
         ]
+    },
+    {
+        "info": "Датчик pH",
+        "port": null,
+        "address": 1,
+        "baudrate": 9600,
+        "bytesize": 8,
+        "stopbit": 1,
+        "parity": "N",
+        "readers": [
+            {
+                "address": 1008,
+                "count": 2,
+                "function_code": 3,
+                "info": "pH",
+                "scale": 1,
+                "unit": "pH"
+            }
+        ]
     }
 ]
