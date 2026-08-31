@@ -71,7 +71,7 @@
         "info": "Датчик температуры",
         "port": null,
         "address": 16,
-        "address_register": null,
+        "address_register": 5602,
         "baudrate": 9600,
         "bytesize": 8,
         "stopbit": 1,
