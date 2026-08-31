@@ -1,6 +1,6 @@
 [
     {
-        "port": "COM1",
+        "port": "COM3",
         "address": 12,
         "baudrate": 9600,
         "bytesize": 8,
@@ -8,12 +8,19 @@
         "parity": "N",
         "readers": [
             {
-                "address": 1234,
-                "count": 1
+                "address": 1,
+                "count": 4,
+                "function_code": 3
             },
             {
-                "address": 1223,
-                "count": 1
+                "address": 11,
+                "count": 2,
+                "function_code": 4
+            },
+            {
+                "address": 13,
+                "count": 2,
+                "function_code": 4
             }
         ]
     }

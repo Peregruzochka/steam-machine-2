@@ -79,7 +79,8 @@ class ModbusManager:
     def read_reader(self, device_index, reader):
         """Читает регистры одного устройства по описанию reader.
 
-        reader — словарь вида {"address": 1234, "count": 1}.
+        reader — словарь вида {"address": 1234, "count": 1,
+        "function_code": 3 | 4 | "holding" | "input"} (по умолчанию 3).
         Возвращает список значений регистров либо None при ошибке.
         """
         client = self.clients.get(device_index)
@@ -89,18 +90,29 @@ class ModbusManager:
         device_address = self.config[device_index]["address"]
         register_address = reader["address"]
         count = reader.get("count", 1)
+        function = reader.get("function_code", "holding")
+        if isinstance(function, str):
+            # Имена функций: holding (3) и input (4)
+            function = {"holding": 3, "input": 4}.get(function.lower())
+        if function not in (3, 4):
+            logger.error("Неизвестный функциональный код: {}", reader.get("function_code"))
+            return None
         logger.info(
-            "Чтение {} регистров с адреса {} (устройство {}, адрес {})",
-            count, register_address, device_index, device_address,
+            "Чтение {} регистров с адреса {} функцией {} (устройство {}, адрес {})",
+            count, register_address, function, device_index, device_address,
         )
+        if function == 4:
+            read_method = client.read_input_registers
+        else:
+            read_method = client.read_holding_registers
         try:
             try:
-                result = client.read_holding_registers(
+                result = read_method(
                     address=register_address, count=count, slave=device_address,
                 )
             except TypeError:
                 # В pymodbus 3.9+ параметр slave переименован в device_id
-                result = client.read_holding_registers(
+                result = read_method(
                     address=register_address, count=count, device_id=device_address,
                 )
         except ModbusIOException as exc:
