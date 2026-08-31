@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """Модуль сохранения показаний устройств в базу данных SQLite."""
 
-import json
 import sqlite3
 from datetime import datetime
 
@@ -27,50 +26,43 @@ class ReadingStorage:
             """
             CREATE TABLE IF NOT EXISTS readings (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                timestamp TEXT NOT NULL,
+                timestamp INTEGER NOT NULL,
                 device_index INTEGER NOT NULL,
                 device_info TEXT,
                 register_address INTEGER,
                 function_code INTEGER,
                 info TEXT,
                 unit TEXT,
-                value REAL,
-                values_json TEXT
+                value REAL
             )
             """
         )
         self.connection.commit()
         logger.info("Таблица readings готова")
 
-    def save_reading(self, device_index, device_info, reader, values):
+    def save_reading(self, device_index, device_info, reader, value):
         """Сохраняет результат чтения одного reader.
 
         values — список значений регистров/битов либо None при ошибке
         чтения (ошибки не сохраняются). Для одиночного числового значения
-        дополнительно заполняется столбец value с учётом scale.
         """
-        if values is None:
-            return
-        scaled = None
-        if len(values) == 1 and isinstance(values[0], (int, float)):
-            scaled = values[0] * (reader.get("scale") or 1)
+
         self.connection.execute(
             """
             INSERT INTO readings (
                 timestamp, device_index, device_info, register_address,
-                function_code, info, unit, value, values_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                function_code, info, unit, value
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                datetime.now().isoformat(timespec="seconds"),
+                int(datetime.now().timestamp()),
                 device_index,
                 device_info,
                 reader.get("address"),
                 reader.get("function_code", 3),
                 reader.get("info"),
                 reader.get("unit"),
-                scaled,
-                json.dumps(values, ensure_ascii=False),
+                value,
             ),
         )
         self.connection.commit()

@@ -1,172 +1,29 @@
 [
     {
-        "info": "Датчик кислорода",
-        "protocol": "modbus",
-        "port": "COM3",
-        "address": 21,
-        "address_register": null,
-        "baudrate": 9600,
-        "bytesize": 8,
-        "stopbit": 1,
-        "parity": "N",
-        "readers": [
-            {
-                "address": 0,
-                "count": 1,
-                "function_code": 3,
-                "info": "Содержание кислорода в атмосфере",
-                "scale": 1,
-                "unit": "%"
-            }
-        ]
-    },
-    {
         "info": "Датчик температуры и давления",
         "protocol": "modbus",
-        "port": null,
+        "port": "COM28",
         "address": 1,
-        "address_register": null,
-        "baudrate": 9600,
+        "baudrate": 115200,
         "bytesize": 8,
         "stopbit": 1,
         "parity": "N",
         "readers": [
             {
                 "address": 9,
-                "count": 4,
-                "function_code": 4,
+                "count": 2,
                 "info": "Температура внешнего датчика",
                 "scale": 0.1,
                 "unit": "°C"
             },
             {
-                "address": 13,
-                "count": 4,
-                "function_code": 4,
+                "address": 5,
+                "count": 2,
                 "info": "Давление",
                 "scale": 1,
                 "unit": "Па"
             }
         ]
-    },
-    {
-        "info": "Датчик pH",
-        "protocol": "modbus",
-        "port": null,
-        "address": 1,
-        "address_register": 3600,
-        "baudrate": 9600,
-        "bytesize": 8,
-        "stopbit": 1,
-        "parity": "N",
-        "readers": [
-            {
-                "address": 1008,
-                "count": 2,
-                "function_code": 3,
-                "info": "pH",
-                "scale": 1,
-                "unit": "pH"
-            }
-        ]
-    },
-    {
-        "info": "Датчик температуры",
-        "protocol": "modbus",
-        "port": null,
-        "address": 16,
-        "address_register": 5602,
-        "baudrate": 9600,
-        "bytesize": 8,
-        "stopbit": 1,
-        "parity": "N",
-        "readers": [
-            {
-                "address": 2200,
-                "count": 2,
-                "function_code": 3,
-                "info": "Значение температуры",
-                "scale": 1,
-                "unit": "°C"
-            }
-        ]
-    },
-    {
-        "info": "Счётчик воды Пульсар",
-        "protocol": "pulsar",
-        "port": null,
-        "address": 12345678,
-        "baudrate": 9600,
-        "bytesize": 8,
-        "stopbit": 1,
-        "parity": "N",
-        "readers": [
-            {
-                "channel": 1,
-                "info": "Объём",
-                "scale": 1,
-                "unit": "м³"
-            }
-        ]
-    },
-    {
-        "info": "Расходомер-счетчик ВЗЛЕТ ЭР ЛАЙТ М",
-        "protocol": "modbus",
-        "port": null,
-        "address": 1,
-        "address_register": 0,
-        "baudrate": 9600,
-        "bytesize": 8,
-        "stopbit": 1,
-        "parity": "N",
-        "readers": [
-            {
-                "address": 49160,
-                "count": 2,
-                "function_code": 4,
-                "info": "Текущий расход",
-                "scale": 1,
-                "unit": "л/мин"
-            }
-        ]
-    },
-    {
-        "info": "Водяной насос MCE71A 2-56C-HA",
-        "protocol": "modbus",
-        "port": null,
-        "address": null,
-        "address_register": null,
-        "baudrate": 9600,
-        "bytesize": 8,
-        "stopbit": 1,
-        "parity": "N",
-        "readers": [],
-        "inputs": []
-    },
-    {
-        "info": "Двойной модуль реле RS485 Modbus RTU 2x",
-        "protocol": "modbus",
-        "port": null,
-        "address": 1,
-        "address_register": 0,
-        "baudrate": 9600,
-        "bytesize": 8,
-        "stopbit": 1,
-        "parity": "N",
-
-        "inputs": [
-            {
-                "address": 0,
-                "function_code": 5,
-                "value": false,
-                "info": "Реле 1"
-            },
-            {
-                "address": 1,
-                "function_code": 5,
-                "value": false,
-                "info": "Реле 2"
-            }
-        ]
     }
 ]
+    
