@@ -108,5 +108,42 @@
                 "unit": "м³"
             }
         ]
+    },
+    {
+        "info": "Расходомер-счетчик ВЗЛЕТ ЭР ЛАЙТ М",
+        "protocol": "modbus",
+        "port": null,
+        "address": 1,
+        "address_register": 0,
+        "baudrate": 9600,
+        "bytesize": 8,
+        "stopbit": 1,
+        "parity": "N",
+        "readers": [
+            {
+                "address": 49160,
+                "count": 2,
+                "function_code": 4,
+                "info": "Текущий расход",
+                "scale": 1,
+                "unit": "л/мин"
+            },
+            {
+                "address": 32770,
+                "count": 2,
+                "function_code": 4,
+                "info": "Объем прямого направления потока, целая часть",
+                "scale": 1,
+                "unit": "м³"
+            },
+            {
+                "address": 32772,
+                "count": 2,
+                "function_code": 4,
+                "info": "Объем прямого направления потока, дробная часть",
+                "scale": 1,
+                "unit": "м³"
+            }
+        ]
     }
 ]
