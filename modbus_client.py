@@ -29,17 +29,19 @@ class ModbusManager:
         logger.info("ModbusManager создан, файл конфигурации: {}", config_path)
 
     def load_config(self):
-        """Читает sensor.json и возвращает список устройств."""
+        """Читает sensor.json и отбирает только Modbus-устройства."""
         logger.info("Загрузка конфигурации из файла {}", self.config_path)
         try:
             with open(self.config_path, "r", encoding="utf-8") as file:
-                self.config = json.load(file)
+                devices = json.load(file)
         except FileNotFoundError:
             logger.error("Файл конфигурации не найден: {}", self.config_path)
             raise
         except json.JSONDecodeError as exc:
             logger.error("Ошибка разбора JSON: {}", exc)
             raise
+        # Устройства без поля protocol считаются Modbus
+        self.config = [d for d in devices if d.get("protocol", "modbus") == "modbus"]
         logger.info("Загружено устройств: {}", len(self.config))
         return self.config
 

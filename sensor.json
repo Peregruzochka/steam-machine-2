@@ -86,5 +86,23 @@
                 "unit": "°C"
             }
         ]
+    },
+    {
+        "info": "Счётчик воды Пульсар",
+        "protocol": "pulsar",
+        "port": null,
+        "address": 12345678,
+        "baudrate": 9600,
+        "bytesize": 8,
+        "stopbit": 1,
+        "parity": "N",
+        "readers": [
+            {
+                "channel": 1,
+                "info": "Объём",
+                "scale": 1,
+                "unit": "м³"
+            }
+        ]
     }
 ]
