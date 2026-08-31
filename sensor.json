@@ -1,6 +1,44 @@
 [
     {
-        "info": "Датчик температуры и давления",
+        "info": "Счётчик воды Пульсар №1",
+        "protocol": "pulsar",
+        "port": null,
+        "address": 12345678,
+        "baudrate": 9600,
+        "bytesize": 8,
+        "stopbit": 1,
+        "parity": "N",
+        "readers": [
+            {
+                "channel": 1,
+                "info": "Объём",
+                "scale": 1,
+                "unit": "м³",
+                "decimals": 2
+            }
+        ]
+    },
+    {
+        "info": "Счётчик воды Пульсар №2",
+        "protocol": "pulsar",
+        "port": null,
+        "address": 12345679,
+        "baudrate": 9600,
+        "bytesize": 8,
+        "stopbit": 1,
+        "parity": "N",
+        "readers": [
+            {
+                "channel": 1,
+                "info": "Объём",
+                "scale": 1,
+                "unit": "м³",
+                "decimals": 2
+            }
+        ]
+    },
+    {
+        "info": "Датчик температуры и давления №1",
         "protocol": "modbus",
         "port": "COM28",
         "address": 1,
@@ -14,16 +52,186 @@
                 "count": 2,
                 "info": "Температура внешнего датчика",
                 "scale": 0.1,
-                "unit": "°C"
+                "unit": "°C",
+                "decimals": 1
             },
             {
                 "address": 5,
                 "count": 2,
                 "info": "Давление",
                 "scale": 1,
-                "unit": "Па"
+                "unit": "кПа",
+                "decimals": 1
+            }
+        ]
+    },
+    {
+        "info": "Датчик температуры и давления №2",
+        "protocol": "modbus",
+        "port": null,
+        "address": 2,
+        "baudrate": 115200,
+        "bytesize": 8,
+        "stopbit": 1,
+        "parity": "N",
+        "readers": [
+            {
+                "address": 9,
+                "count": 2,
+                "info": "Температура внешнего датчика",
+                "scale": 0.1,
+                "unit": "°C",
+                "decimals": 1
+            },
+            {
+                "address": 5,
+                "count": 2,
+                "info": "Давление",
+                "scale": 1,
+                "unit": "кПа",
+                "decimals": 1
+            }
+        ]
+    },
+    {
+        "info": "Датчик pH №1",
+        "protocol": "modbus",
+        "port": null,
+        "address": 1,
+        "baudrate": 9600,
+        "bytesize": 8,
+        "stopbit": 1,
+        "parity": "N",
+        "readers": [
+            {
+                "address": 1008,
+                "count": 2,
+                "function_code": 3,
+                "info": "pH",
+                "scale": 1,
+                "unit": "pH",
+                "decimals": 2
+            }
+        ]
+    },
+    {
+        "info": "Датчик pH №2",
+        "protocol": "modbus",
+        "port": null,
+        "address": 2,
+        "baudrate": 9600,
+        "bytesize": 8,
+        "stopbit": 1,
+        "parity": "N",
+        "readers": [
+            {
+                "address": 1008,
+                "count": 2,
+                "function_code": 3,
+                "info": "pH",
+                "scale": 1,
+                "unit": "pH",
+                "decimals": 2
+            }
+        ]
+    },
+    {
+        "info": "Датчик температуры №1",
+        "protocol": "modbus",
+        "port": null,
+        "address": 16,
+        "baudrate": 9600,
+        "bytesize": 8,
+        "stopbit": 1,
+        "parity": "N",
+        "readers": [
+            {
+                "address": 2200,
+                "count": 2,
+                "function_code": 3,
+                "info": "Значение температуры",
+                "scale": 1,
+                "unit": "°C",
+                "decimals": 1
+            }
+        ]
+    },
+    {
+        "info": "Датчик температуры №2",
+        "protocol": "modbus",
+        "port": null,
+        "address": 17,
+        "baudrate": 9600,
+        "bytesize": 8,
+        "stopbit": 1,
+        "parity": "N",
+        "readers": [
+            {
+                "address": 2200,
+                "count": 2,
+                "function_code": 3,
+                "info": "Значение температуры",
+                "scale": 1,
+                "unit": "°C",
+                "decimals": 1
+            }
+        ]
+    },
+    {
+        "info": "Расходомер-счетчик ВЗЛЕТ ЭР ЛАЙТ М",
+        "protocol": "modbus",
+        "port": null,
+        "address": 1,
+        "baudrate": 9600,
+        "bytesize": 8,
+        "stopbit": 1,
+        "parity": "N",
+        "readers": [
+            {
+                "address": 49160,
+                "count": 2,
+                "function_code": 4,
+                "info": "Текущий расход",
+                "scale": 1,
+                "unit": "м³/ч",
+                "decimals": 2
+            }
+        ]
+    },
+    {
+        "info": "Водяной насос МСП71А 2-56С-НА",
+        "protocol": "modbus",
+        "port": null,
+        "address": null,
+        "baudrate": 9600,
+        "bytesize": 8,
+        "stopbit": 1,
+        "parity": "N",
+        "readers": [],
+        "inputs": []
+    },
+    {
+        "info": "Двойной модуль реле RS485 Modbus RTU 2x",
+        "protocol": "modbus",
+        "port": null,
+        "address": 1,
+        "baudrate": 9600,
+        "bytesize": 8,
+        "stopbit": 1,
+        "parity": "N",
+        "inputs": [
+            {
+                "address": 0,
+                "function_code": 5,
+                "value": false,
+                "info": "Реле 1"
+            },
+            {
+                "address": 1,
+                "function_code": 5,
+                "value": false,
+                "info": "Реле 2"
             }
         ]
     }
 ]
-    

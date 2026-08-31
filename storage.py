@@ -1,77 +1,95 @@
 # -*- coding: utf-8 -*-
-"""Модуль сохранения показаний устройств в базу данных SQLite."""
+"""Модуль записи показаний устройств в CSV-файл.
 
-import sqlite3
+Запись ведётся только во время включённой ЗАПИСИ: при старте создаётся
+новый файл recordings/recording_ГГГГММДД_ЧЧММСС.csv с заголовком,
+каждое показание дописывается строкой.
+"""
+
+import csv
 from datetime import datetime
+from pathlib import Path
 
 from loguru import logger
 
 
 class ReadingStorage:
-    """Хранилище показаний на основе SQLite.
+    """Хранилище показаний на основе CSV.
 
-    Создаёт и наполняет таблицу readings, где каждая строка —
-    результат чтения одного reader.
+    Умеет включать/выключать запись (start_recording/stop_recording)
+    и дописывать показания в открытый файл (save_reading).
     """
 
-    def __init__(self, db_path="readings.db"):
-        """Открывает соединение с базой и создаёт таблицу при необходимости."""
-        logger.info("Открытие базы данных: {}", db_path)
-        self.connection = sqlite3.connect(db_path)
-        self._init_db()
+    def __init__(self, directory="recordings"):
+        """Сохраняет каталог для файлов записи и помечает запись выключенной."""
+        logger.info("Создано хранилище CSV, каталог: {}", directory)
+        self.directory = Path(directory)
+        self._file = None
+        self._writer = None
 
-    def _init_db(self):
-        """Создаёт таблицу показаний, если её ещё нет."""
-        self.connection.execute(
-            """
-            CREATE TABLE IF NOT EXISTS readings (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                timestamp INTEGER NOT NULL,
-                device_index INTEGER NOT NULL,
-                device_info TEXT,
-                register_address INTEGER,
-                function_code INTEGER,
-                info TEXT,
-                unit TEXT,
-                value REAL
-            )
-            """
+    @property
+    def is_recording(self):
+        """Возвращает True, если запись сейчас включена."""
+        return self._file is not None
+
+    def start_recording(self):
+        """Включает запись: создаёт новый CSV-файл и пишет заголовок.
+
+        Возвращает путь к созданному файлу.
+        """
+        if self.is_recording:
+            logger.warning("Запись уже включена")
+            return self._file.name
+        self.directory.mkdir(parents=True, exist_ok=True)
+        file_name = f"recording_{datetime.now():%Y%m%d_%H%M%S}.csv"
+        path = self.directory / file_name
+        logger.info("Включение записи, файл: {}", path)
+        self._file = open(path, "w", newline="", encoding="utf-8-sig")
+        self._writer = csv.writer(self._file, delimiter=";")
+        self._writer.writerow(
+            ["время", "устройство", "параметр", "единицы", "значение"]
         )
-        self.connection.commit()
-        logger.info("Таблица readings готова")
+        self._file.flush()
+        logger.info("Запись включена: {}", path)
+        return path
+
+    def stop_recording(self):
+        """Выключает запись и закрывает текущий CSV-файл."""
+        if not self.is_recording:
+            logger.warning("Запись уже выключена")
+            return
+        logger.info("Выключение записи, файл: {}", self._file.name)
+        self._file.close()
+        self._file = None
+        self._writer = None
+        logger.info("Запись выключена")
 
     def save_reading(self, device_index, device_info, reader, value):
-        """Сохраняет результат чтения одного reader.
+        """Дописывает одно показание в CSV (только при включённой записи).
 
-        values — список значений регистров/битов либо None при ошибке
-        чтения (ошибки не сохраняются). Для одиночного числового значения
+        value — число либо None при ошибке чтения (ошибки не записываются).
         """
-
-        self.connection.execute(
-            """
-            INSERT INTO readings (
-                timestamp, device_index, device_info, register_address,
-                function_code, info, unit, value
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                int(datetime.now().timestamp()),
-                device_index,
+        if not self.is_recording:
+            return
+        if value is None:
+            return
+        self._writer.writerow(
+            [
+                datetime.now().isoformat(timespec="seconds"),
                 device_info,
-                reader.get("address"),
-                reader.get("function_code", 3),
                 reader.get("info"),
                 reader.get("unit"),
                 value,
-            ),
+            ]
         )
-        self.connection.commit()
+        self._file.flush()
         logger.info(
-            "Показание сохранено: устройство {}, регистр {}",
-            device_index, reader.get("address"),
+            "Показание записано в CSV: устройство {}, параметр {} = {}",
+            device_index, reader.get("info"), value,
         )
 
     def close(self):
-        """Закрывает соединение с базой данных."""
-        logger.info("Закрытие базы данных")
-        self.connection.close()
+        """Закрывает файл записи, если он открыт."""
+        if self.is_recording:
+            self.stop_recording()
+        logger.info("Хранилище CSV закрыто")

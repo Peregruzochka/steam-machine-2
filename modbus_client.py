@@ -87,15 +87,24 @@ class ModbusManager:
                 )
         return self.clients
 
-    def _read_registers(self, client, info, count, read_register_address, device_address):
+    def _read_registers(self, client, info, count, read_register_address, device_address, function_code):
         ### тут начинается развязка того, что сделать с регистром
         ### важно чтобы значения сочетались с теми, которые есть в sensor.json
         try:
             if info in ("Температура внешнего датчика", "Давление"):
+                # Комбинированный датчик читается блоком с нулевого адреса,
+                # нужные регистры берутся срезом по смещению из конфигурации
                 result = client.read_input_registers(0, count=16, device_id=device_address)
-                register_address = result.registers[read_register_address]
-                logger.info("Получена последовательность регистров устройства {}: {}", device_address, register_address)
-                return register_address
+                registers = result.registers[read_register_address:read_register_address + count]
+                logger.info("Получена последовательность регистров устройства {}: {}", device_address, registers)
+                return registers
+            # Остальные датчики читаются по своему адресу: функция 4 — input, иначе holding
+            if function_code == 4:
+                result = client.read_input_registers(read_register_address, count=count, device_id=device_address)
+            else:
+                result = client.read_holding_registers(read_register_address, count=count, device_id=device_address)
+            logger.info("Получена последовательность регистров устройства {}: {}", device_address, result.registers)
+            return result.registers
         except ModbusIOException as exc:
             logger.error("Нет ответа от устройства {}: {}", device_address, exc)
             return None
@@ -109,8 +118,9 @@ class ModbusManager:
         info = reader.get("info")
         device_address = self.config[device_index]["address"]
         scale = reader.get("scale", 1)
+        function_code = reader.get("function_code", 3)
 
-        registers = self._read_registers(client, info, count, read_register_address, device_address)
+        registers = self._read_registers(client, info, count, read_register_address, device_address, function_code)
         if registers is None:
             return None
 
@@ -124,11 +134,65 @@ class ModbusManager:
         ### тут начинается развязка того, что сделать с регистром
         ### важно чтобы значения сочетались с теми, которые есть в sensor.json
 
-        if info in ("Температура внешнего датчика", "Давление"):
+        if len(registers) >= 2:
+            # Два регистра собираются в 32-битное целое (младшее слово первым)
             packed_bytes = struct.pack('<HH', registers[0], registers[1])
             value = struct.unpack('<I', packed_bytes)[0]
+        elif len(registers) == 1:
+            # Одиночный регистр берётся как есть
+            value = registers[0]
 
         return round(value * scale, 2)
+
+    def write_input(self, device_index, input_def, value=None):
+        """Записывает значение в регистр/катушку устройства по описанию input.
+
+        input_def — словарь вида {"address": 0, "function_code": 5, "info": "Реле 1"}.
+        Функция 5 — запись одной катушки: true — замкнуть, false — разомкнуть.
+        Аргумент value перекрывает значение из описания. Возвращает True при успехе.
+        """
+        client = self.clients.get(device_index)
+        if client is None:
+            logger.error("Устройство {} не подключено, запись невозможна", device_index)
+            return False
+        device_address = self.config[device_index]["address"]
+        register_address = input_def["address"]
+        function_code = input_def.get("function_code", 5)
+        if value is None:
+            value = input_def.get("value", False)
+        logger.info(
+            "Запись значения {} в регистр {} (функция {}, устройство {}, адрес {})",
+            value, register_address, function_code, device_index, device_address,
+        )
+        try:
+            if function_code == 5:
+                result = client.write_coil(register_address, bool(value), device_id=device_address)
+            elif function_code == 6:
+                result = client.write_register(register_address, int(value), device_id=device_address)
+            else:
+                logger.error("Запись с функцией {} не поддерживается", function_code)
+                return False
+        except ModbusIOException as exc:
+            logger.error("Нет ответа от устройства {}: {}", device_address, exc)
+            return False
+        if result.isError():
+            logger.error("Ошибка записи регистра: {}", result)
+            return False
+        logger.info("Значение {} записано в регистр {}", value, register_address)
+        return True
+
+    def find_relay_device(self):
+        """Ищет в конфигурации модуль реле (устройство с inputs, содержащими «Реле 1»).
+
+        Возвращает (индекс_устройства, описание_input) либо (None, None).
+        """
+        for index, device in enumerate(self.config):
+            for input_def in device.get("inputs", []):
+                if "Реле 1" in input_def.get("info", ""):
+                    logger.info("Модуль реле найден: устройство {}", index)
+                    return index, input_def
+        logger.warning("Модуль реле не найден в конфигурации")
+        return None, None
 
     def read_all(self):
         """Считывает данные со всех подключённых устройств по всем readers.
