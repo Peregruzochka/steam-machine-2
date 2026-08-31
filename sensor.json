@@ -48,7 +48,7 @@
     {
         "info": "Датчик pH",
         "port": null,
-        "address": 1,
+        "address": 3600,
         "baudrate": 9600,
         "bytesize": 8,
         "stopbit": 1,
