@@ -46,6 +46,10 @@ class ModbusManager:
         """Подключается ко всем устройствам из конфигурации и сохраняет клиентов."""
         logger.info("Подключение к устройствам ({} шт.)", len(self.config))
         for index, device in enumerate(self.config):
+            if device.get("port") is None:
+                # Порт не указан — устройство ещё не подключено к компьютеру
+                logger.warning("У устройства {} не указан порт, пропуск", index)
+                continue
             try:
                 client = ModbusSerialClient(
                     port=device["port"],

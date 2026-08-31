@@ -8,18 +8,29 @@
         "parity": "N",
         "readers": [
             {
-                "address": 1,
-                "count": 4,
+                "address": 0,
+                "count": 1,
                 "function_code": 3
-            },
+            }
+        ]
+    },
+    {
+        "comment": "Датчик температуры и давления",
+        "port": null,
+        "address": 1,
+        "baudrate": 9600,
+        "bytesize": 8,
+        "stopbit": 1,
+        "parity": "N",
+        "readers": [
             {
-                "address": 11,
-                "count": 2,
+                "address": 9,
+                "count": 4,
                 "function_code": 4
             },
             {
                 "address": 13,
-                "count": 2,
+                "count": 4,
                 "function_code": 4
             }
         ]
