@@ -56,3 +56,7 @@ coverage.xml
 Thumbs.db
 desktop.ini
 .DS_Store
+
+# База данных показаний
+readings.db
+*.db

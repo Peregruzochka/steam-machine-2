@@ -63,9 +63,10 @@ class PulsarManager:
     подключение по COM-порту и чтение показаний.
     """
 
-    def __init__(self, config_path="sensor.json"):
-        """Сохраняет путь к конфигурации и создаёт пустые коллекции портов."""
+    def __init__(self, config_path="sensor.json", storage=None):
+        """Сохраняет путь к конфигурации, хранилище и создаёт пустые коллекции портов."""
         self.config_path = config_path
+        self.storage = storage
         self.config = []
         self.ports = {}
         logger.info("PulsarManager создан, файл конфигурации: {}", config_path)
@@ -193,6 +194,12 @@ class PulsarManager:
                 if value is not None and reader.get("scale"):
                     value *= reader["scale"]
                 device_data[reader.get("info", f"канал{channel}")] = value
+                if self.storage is not None:
+                    # Сохраняем показание в базу данных
+                    self.storage.save_reading(
+                        index, device.get("info"), reader,
+                        [value] if value is not None else None,
+                    )
             data[index] = device_data
         logger.info("Итоговые данные: {}", data)
         return data

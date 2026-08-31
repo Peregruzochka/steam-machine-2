@@ -1,26 +1,5 @@
 [
     {
-        "info": "Датчик кислорода",
-        "protocol": "modbus",
-        "port": "COM3",
-        "address": 12,
-        "address_register": 1,
-        "baudrate": 9600,
-        "bytesize": 8,
-        "stopbit": 1,
-        "parity": "N",
-        "readers": [
-            {
-                "address": 0,
-                "count": 1,
-                "function_code": 3,
-                "info": "Содержание кислорода в атмосфере",
-                "scale": 1,
-                "unit": "%"
-            }
-        ]
-    },
-    {
         "info": "Датчик температуры и давления",
         "protocol": "modbus",
         "port": null,
@@ -153,16 +132,7 @@
         "bytesize": 8,
         "stopbit": 1,
         "parity": "N",
-        "readers": [
-            {
-                "address": 0,
-                "count": 2,
-                "function_code": 1,
-                "info": "Состояние реле (реле 1, реле 2)",
-                "scale": 1,
-                "unit": ""
-            }
-        ],
+
         "inputs": [
             {
                 "address": 0,

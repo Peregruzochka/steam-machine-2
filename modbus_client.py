@@ -12,6 +12,8 @@ from pymodbus.client import ModbusSerialClient
 from pymodbus.exceptions import ModbusIOException
 from serial import SerialException
 
+from storage import ReadingStorage
+
 
 class ModbusManager:
     """Менеджер MODBUS RTU устройств.
@@ -20,9 +22,10 @@ class ModbusManager:
     подключение к устройствам и чтение регистров из секции readers.
     """
 
-    def __init__(self, config_path="sensor.json"):
-        """Сохраняет путь к конфигурации и создаёт пустые коллекции клиентов."""
+    def __init__(self, config_path="sensor.json", storage=None):
+        """Сохраняет путь к конфигурации, хранилище и создаёт пустые коллекции клиентов."""
         self.config_path = config_path
+        self.storage = storage
         self.config = []
         self.clients = {}
         self.addresses = {}
@@ -285,7 +288,11 @@ class ModbusManager:
         for index, device in enumerate(self.config):
             device_data = {}
             for reader in device.get("readers", []):
-                device_data[reader["address"]] = self.read_reader(index, reader)
+                values = self.read_reader(index, reader)
+                device_data[reader["address"]] = values
+                if self.storage is not None:
+                    # Сохраняем показание в базу данных
+                    self.storage.save_reading(index, device.get("info"), reader, values)
             data[index] = device_data
         logger.info("Итоговые данные: {}", data)
         return data
@@ -300,7 +307,8 @@ class ModbusManager:
 
 
 if __name__ == "__main__":
-    manager = ModbusManager()
+    storage = ReadingStorage()
+    manager = ModbusManager(storage=storage)
     manager.load_config()
     manager.connect_all()
     try:
@@ -308,3 +316,4 @@ if __name__ == "__main__":
         manager.read_all()
     finally:
         manager.disconnect_all()
+        storage.close()
