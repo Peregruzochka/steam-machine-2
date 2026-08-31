@@ -25,6 +25,7 @@ class ModbusManager:
         self.config_path = config_path
         self.config = []
         self.clients = {}
+        self.addresses = {}
         logger.info("ModbusManager создан, файл конфигурации: {}", config_path)
 
     def load_config(self):
@@ -68,10 +69,15 @@ class ModbusManager:
                 )
                 continue
             if connected:
+                address = self.resolve_address(index)
+                if address is None:
+                    # Устройство не ответило — считаем его неподключённым
+                    client.close()
+                    continue
                 self.clients[index] = client
                 logger.info(
                     "Устройство {} подключено (порт {}, адрес {})",
-                    index, device["port"], device["address"],
+                    index, device["port"], address,
                 )
             else:
                 logger.error(
@@ -80,31 +86,50 @@ class ModbusManager:
                 )
         return self.clients
 
-    def read_reader(self, device_index, reader):
-        """Читает регистры одного устройства по описанию reader.
+    def resolve_address(self, device_index):
+        """Определяет реальный адрес устройства.
 
-        reader — словарь вида {"address": 1234, "count": 1,
-        "function_code": 3 | 4 | "holding" | "input"} (по умолчанию 3).
-        Возвращает список значений регистров либо None при ошибке.
+        Если в конфигурации задан address_register (регистр, где хранится адрес
+        устройства), читает его по заводскому адресу из поля address.
+        Иначе берёт адрес напрямую из конфигурации.
+        Возвращает адрес либо None, если устройство не ответило.
         """
+        device = self.config[device_index]
+        address_register = device.get("address_register")
+        if address_register is None:
+            # Регистр адреса не задан — используем адрес из конфигурации как есть
+            self.addresses[device_index] = device["address"]
+            logger.info(
+                "Устройство {}: адрес из конфигурации {}",
+                device_index, device["address"],
+            )
+            return self.addresses[device_index]
         client = self.clients.get(device_index)
         if client is None:
             logger.error("Устройство {} не подключено", device_index)
             return None
-        device_address = self.config[device_index]["address"]
-        register_address = reader["address"]
-        count = reader.get("count", 1)
-        function = reader.get("function_code", "holding")
-        if isinstance(function, str):
-            # Имена функций: holding (3) и input (4)
-            function = {"holding": 3, "input": 4}.get(function.lower())
-        if function not in (3, 4):
-            logger.error("Неизвестный функциональный код: {}", reader.get("function_code"))
-            return None
+        bootstrap = device.get("address", 1)
         logger.info(
-            "Чтение {} регистров с адреса {} функцией {} (устройство {}, адрес {})",
-            count, register_address, function, device_index, device_address,
+            "Определение адреса устройства {}: чтение регистра {} по адресу {}",
+            device_index, address_register, bootstrap,
         )
+        registers = self._read_registers(
+            client, 3, address_register, 1, bootstrap,
+        )
+        if registers is None:
+            # Нет ответа — подключение к устройству невозможно
+            logger.error("Не удалось определить адрес устройства {}", device_index)
+            return None
+        self.addresses[device_index] = registers[0]
+        logger.info("Устройство {}: реальный адрес {}", device_index, registers[0])
+        return self.addresses[device_index]
+
+    def _read_registers(self, client, function, register_address, count, device_address):
+        """Низкоуровневое чтение регистров с обработкой ошибок pymodbus.
+
+        function — 3 (holding) или 4 (input).
+        Возвращает список значений регистров либо None при ошибке.
+        """
         if function == 4:
             read_method = client.read_input_registers
         else:
@@ -126,8 +151,38 @@ class ModbusManager:
         if result.isError():
             logger.error("Ошибка чтения регистров: {}", result)
             return None
-        logger.info("Прочитаны значения: {}", result.registers)
         return result.registers
+
+    def read_reader(self, device_index, reader):
+        """Читает регистры одного устройства по описанию reader.
+
+        reader — словарь вида {"address": 1234, "count": 1,
+        "function_code": 3 | 4 | "holding" | "input"} (по умолчанию 3).
+        Возвращает список значений регистров либо None при ошибке.
+        """
+        client = self.clients.get(device_index)
+        if client is None:
+            logger.error("Устройство {} не подключено", device_index)
+            return None
+        device_address = self.addresses.get(device_index)
+        register_address = reader["address"]
+        count = reader.get("count", 1)
+        function = reader.get("function_code", "holding")
+        if isinstance(function, str):
+            # Имена функций: holding (3) и input (4)
+            function = {"holding": 3, "input": 4}.get(function.lower())
+        if function not in (3, 4):
+            logger.error("Неизвестный функциональный код: {}", reader.get("function_code"))
+            return None
+        logger.info(
+            "Чтение {} регистров с адреса {} функцией {} (устройство {}, адрес {})",
+            count, register_address, function, device_index, device_address,
+        )
+        registers = self._read_registers(client, function, register_address, count, device_address)
+        if registers is None:
+            return None
+        logger.info("Прочитаны значения: {}", registers)
+        return registers
 
     def read_all(self):
         """Считывает данные со всех подключённых устройств по всем readers.
