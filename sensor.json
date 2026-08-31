@@ -1,5 +1,6 @@
 [
     {
+        "info": "Датчик кислорода",
         "port": "COM3",
         "address": 12,
         "baudrate": 9600,
@@ -10,7 +11,10 @@
             {
                 "address": 0,
                 "count": 1,
-                "function_code": 3
+                "function_code": 3,
+                "info": "Содержание кислорода в атмосфере",
+                "scale": 1,
+                "unit": "%"
             }
         ]
     },
@@ -26,12 +30,18 @@
             {
                 "address": 9,
                 "count": 4,
-                "function_code": 4
+                "function_code": 4,
+                "info": "Температура внешнего датчика",
+                "scale": 0.1,
+                "unit": "°C"
             },
             {
                 "address": 13,
                 "count": 4,
-                "function_code": 4
+                "function_code": 4,
+                "info": "Давление",
+                "scale": 1,
+                "unit": "Па"
             }
         ]
     }
