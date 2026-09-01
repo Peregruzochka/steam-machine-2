@@ -52,7 +52,7 @@ CATEGORY_TITLES = {
 # Реальные диапазоны величин для нормировки на общую шкалу графика 0…100 %
 # (значения датчика приводятся к доле своего диапазона)
 RANGE_TEMPERATURE = (-40.0, 120.0)  # температура, °C
-RANGE_PRESSURE = (0.0, 10.0)        # давление, атм
+RANGE_PRESSURE = (0.0, 1013.25)     # давление, кПа (максимум датчика 10 атм ≈ 1013.25 кПа)
 RANGE_PH = (0.0, 14.0)              # кислотность, pH (стандартная шкала)
 RANGE_FLOW = (0.0, 10.0)            # расход/объём счётчиков, м³ и м³/ч
 
@@ -64,9 +64,6 @@ CATEGORY_RANGES = {
     CATEGORY_PH: RANGE_PH,
     CATEGORY_FLOW_RATE: RANGE_FLOW,
 }
-
-# кПа в одной атмосфере — для перевода показаний давления в единицы диапазона
-PRESSURE_KPA_IN_ATM = 101.325
 
 # Верх общей шкалы графика, % (все серии нормируются на 0…CHART_SCALE_MAX)
 CHART_SCALE_MAX = 100.0
@@ -179,16 +176,6 @@ def normalize_value(value, range_min, range_max):
         return 0.0
     percent = (value - range_min) / span * CHART_SCALE_MAX
     return max(0.0, min(CHART_SCALE_MAX, percent))
-
-
-def to_chart_units(sensor, value):
-    """Переводит показание датчика в единицы его рабочего диапазона графика.
-
-    Давление приходит в кПа, а диапазон задан в атм — выполняется перевод.
-    """
-    if sensor.category == CATEGORY_PRESSURE and "кПа" in (sensor.unit or ""):
-        return value / PRESSURE_KPA_IN_ATM
-    return value
 
 
 class SensorModel(QAbstractListModel):
@@ -474,8 +461,7 @@ class Controller(QObject):
         for row_index, row in enumerate(self._sensors.rows()):
             if not row.visible:
                 continue
-            value = to_chart_units(row, row.value)
-            y = normalize_value(value, row.range_min, row.range_max)
+            y = normalize_value(row.value, row.range_min, row.range_max)
             self.chartPoint.emit(row_index, t, y)
 
     def _on_heating_done(self, success, state):
