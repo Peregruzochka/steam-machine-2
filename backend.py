@@ -221,7 +221,11 @@ class PollWorker(QObject):
         """Сохраняет модель датчиков и создаёт менеджеров устройств и хранилище."""
         super().__init__(parent)
         self._model = sensors_model
-        self._storage = ReadingStorage()
+        # Колонки CSV «широкого» формата: имя датчика из UI + единицы измерения
+        columns = [
+            (row.key, f"{row.name}, {row.unit}") for row in self._model.rows()
+        ]
+        self._storage = ReadingStorage(columns=columns)
         self._modbus = ModbusManager(storage=self._storage)
         self._pulsar = PulsarManager(storage=self._storage)
         # Команды из GUI-потока (None — команды нет)
@@ -301,6 +305,8 @@ class PollWorker(QObject):
         for index, device_data in self._pulsar.read_all().items():
             for reader_info, value in device_data.items():
                 readings[("pulsar", index, reader_info)] = value
+        # Все устройства опрошены — пишем строку цикла в CSV
+        self._storage.flush_row()
         self.readingsReady.emit(readings)
 
 

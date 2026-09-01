@@ -195,10 +195,9 @@ class PulsarManager:
                     value *= reader["scale"]
                 device_data[reader.get("info", f"канал{channel}")] = value
                 if self.storage is not None:
-                    # Сохраняем показание в базу данных
+                    # Ключ совпадает с колонкой CSV и ключом модели датчиков
                     self.storage.save_reading(
-                        index, device.get("info"), reader,
-                        [value] if value is not None else None,
+                        ("pulsar", index, reader.get("info", f"канал{channel}")), value
                     )
             data[index] = device_data
         logger.info("Итоговые данные: {}", data)

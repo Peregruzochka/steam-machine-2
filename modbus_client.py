@@ -207,7 +207,8 @@ class ModbusManager:
                 value = self.read_reader(index, reader)
                 device_data[reader["address"]] = value
                 if self.storage is not None:
-                    self.storage.save_reading(index, device.get("info"), reader, value)
+                    # Ключ совпадает с колонкой CSV и ключом модели датчиков
+                    self.storage.save_reading(("modbus", index, reader["address"]), value)
             data[index] = device_data
         logger.info("Итоговые данные: {}", data)
         return data
@@ -222,12 +223,21 @@ class ModbusManager:
 
 
 if __name__ == "__main__":
-    storage = ReadingStorage()
-    manager = ModbusManager(storage=storage)
+    manager = ModbusManager()
     manager.load_config()
+    # Колонки CSV «широкого» формата по всем readers конфигурации
+    columns = [
+        (("modbus", index, reader["address"]), f"{device.get('info')}, {reader.get('unit')}")
+        for index, device in enumerate(manager.config)
+        for reader in device.get("readers", [])
+    ]
+    storage = ReadingStorage(columns=columns)
+    storage.start_recording()
+    manager.storage = storage
     manager.connect_all()
     try:
         manager.read_all()
+        storage.flush_row()
     finally:
         manager.disconnect_all()
         storage.close()

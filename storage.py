@@ -1,9 +1,15 @@
 # -*- coding: utf-8 -*-
 """Модуль записи показаний устройств в CSV-файл.
 
+Формат файла — «широкий»: первая колонка «Время» (дд.мм.гггг чч:мм:сс),
+далее по колонке на каждый параметр датчика с заголовком вида
+«Название параметра, единицы измерения». Одна строка файла соответствует
+одному полному циклу опроса всех устройств.
+
 Запись ведётся только во время включённой ЗАПИСИ: при старте создаётся
 новый файл recordings/recording_ГГГГММДД_ЧЧММСС.csv с заголовком,
-каждое показание дописывается строкой.
+показания накапливаются в буфере цикла и дописываются строкой
+по команде flush_row().
 """
 
 import csv
@@ -14,18 +20,26 @@ from loguru import logger
 
 
 class ReadingStorage:
-    """Хранилище показаний на основе CSV.
+    """Хранилище показаний на основе CSV в «широком» формате.
 
-    Умеет включать/выключать запись (start_recording/stop_recording)
-    и дописывать показания в открытый файл (save_reading).
+    Умеет включать/выключать запись (start_recording/stop_recording),
+    накапливать показания одного цикла опроса (save_reading)
+    и дописывать готовую строку цикла в файл (flush_row).
     """
 
-    def __init__(self, directory="recordings"):
-        """Сохраняет каталог для файлов записи и помечает запись выключенной."""
-        logger.info("Создано хранилище CSV, каталог: {}", directory)
+    def __init__(self, directory="recordings", columns=None):
+        """Сохраняет каталог для файлов записи и список колонок.
+
+        columns — список пар (ключ_показания, заголовок_колонки);
+        ключи совпадают с теми, по которым клиенты передают показания.
+        """
+        logger.info("Создано хранилище CSV, каталог: {}, колонок: {}", directory, len(columns or []))
         self.directory = Path(directory)
+        self.columns = list(columns or [])
         self._file = None
         self._writer = None
+        # Буфер показаний текущего цикла опроса: {ключ: значение}
+        self._buffer = {}
 
     @property
     def is_recording(self):
@@ -33,8 +47,9 @@ class ReadingStorage:
         return self._file is not None
 
     def start_recording(self):
-        """Включает запись: создаёт новый CSV-файл и пишет заголовок.
+        """Включает запись: создаёт новый CSV-файл и пишет строку заголовков.
 
+        Первая колонка — «Время», остальные — параметры датчиков.
         Возвращает путь к созданному файлу.
         """
         if self.is_recording:
@@ -46,9 +61,7 @@ class ReadingStorage:
         logger.info("Включение записи, файл: {}", path)
         self._file = open(path, "w", newline="", encoding="utf-8-sig")
         self._writer = csv.writer(self._file, delimiter=";")
-        self._writer.writerow(
-            ["время", "устройство", "параметр", "единицы", "значение"]
-        )
+        self._writer.writerow(["Время"] + [header for _, header in self.columns])
         self._file.flush()
         logger.info("Запись включена: {}", path)
         return path
@@ -62,31 +75,38 @@ class ReadingStorage:
         self._file.close()
         self._file = None
         self._writer = None
+        self._buffer.clear()
         logger.info("Запись выключена")
 
-    def save_reading(self, device_index, device_info, reader, value):
-        """Дописывает одно показание в CSV (только при включённой записи).
+    def save_reading(self, key, value):
+        """Запоминает одно показание в буфере текущего цикла (без записи в файл).
 
-        value — число либо None при ошибке чтения (ошибки не записываются).
+        key — ключ колонки, value — число либо None при ошибке чтения
+        (None даёт пустую ячейку в строке цикла).
         """
         if not self.is_recording:
             return
-        if value is None:
+        self._buffer[key] = value
+        logger.info("Показание помещено в буфер цикла: ключ {} = {}", key, value)
+
+    def flush_row(self):
+        """Дописывает строку текущего цикла опроса в CSV (только при включённой записи).
+
+        Первая ячейка — текущее время (дд.мм.гггг чч:мм:сс), далее значения
+        по колонкам; отсутствующие показания пишутся пустыми ячейками.
+        """
+        if not self.is_recording:
             return
-        self._writer.writerow(
-            [
-                datetime.now().isoformat(timespec="seconds"),
-                device_info,
-                reader.get("info"),
-                reader.get("unit"),
-                value,
-            ]
-        )
+        if not self._buffer:
+            # Ни один датчик не вернул данные за цикл — строку не пишем
+            logger.warning("Цикл опроса без показаний, строка пропущена")
+            return
+        row = [datetime.now().strftime("%d.%m.%Y %H:%M:%S")]
+        row += [self._buffer.get(key, "") for key, _ in self.columns]
+        self._writer.writerow(row)
         self._file.flush()
-        logger.info(
-            "Показание записано в CSV: устройство {}, параметр {} = {}",
-            device_index, reader.get("info"), value,
-        )
+        logger.info("Строка цикла записана в CSV: {}", row)
+        self._buffer.clear()
 
     def close(self):
         """Закрывает файл записи, если он открыт."""
