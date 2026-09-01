@@ -40,7 +40,7 @@
     {
         "info": "Датчик температуры и давления №1",
         "protocol": "modbus",
-        "port": "COM28",
+        "port": "COM4",
         "address": 1,
         "baudrate": 115200,
         "bytesize": 8,
@@ -56,7 +56,7 @@
                 "decimals": 1
             },
             {
-                "address": 5,
+                "address": 13,
                 "count": 2,
                 "info": "Давление",
                 "scale": 1,
