@@ -98,6 +98,14 @@ ApplicationWindow {
                             font.pixelSize: 13
                         }
 
+                        // Компактный тумблер вывода параметра на график
+                        ChartSwitch {
+                            Layout.preferredWidth: 38
+                            Layout.preferredHeight: 20
+                            active: sensorRow.chartVisible
+                            onToggled: (checked) => ctrl.setSensorVisible(sensorRow.index, checked)
+                        }
+
                         // Кружок с цветом серии этого датчика на графике
                         Rectangle {
                             Layout.preferredWidth: 14
@@ -106,14 +114,6 @@ ApplicationWindow {
                             color: sensorRow.seriesColor
                             border.color: "#33405a"
                             border.width: 1
-                        }
-
-                        // Компактный тумблер вывода параметра на график
-                        ChartSwitch {
-                            Layout.preferredWidth: 38
-                            Layout.preferredHeight: 20
-                            active: sensorRow.chartVisible
-                            onToggled: (checked) => ctrl.setSensorVisible(sensorRow.index, checked)
                         }
                     }
                 }
