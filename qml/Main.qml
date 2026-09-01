@@ -108,10 +108,12 @@ ApplicationWindow {
                             border.width: 1
                         }
 
-                        // Тумблер вывода параметра на график
-                        Switch {
-                            checked: sensorRow.chartVisible
-                            onToggled: ctrl.setSensorVisible(sensorRow.index, checked)
+                        // Компактный тумблер вывода параметра на график
+                        ChartSwitch {
+                            Layout.preferredWidth: 38
+                            Layout.preferredHeight: 20
+                            active: sensorRow.chartVisible
+                            onToggled: (checked) => ctrl.setSensorVisible(sensorRow.index, checked)
                         }
                     }
                 }
