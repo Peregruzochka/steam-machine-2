@@ -57,6 +57,10 @@ Thumbs.db
 desktop.ini
 .DS_Store
 
-# ���� ������ ���������
+# ���� ������ ���������
+# Файлы записи показаний
 readings.db
 *.db
+
+# Каталог файлов записи CSV
+recordings/
