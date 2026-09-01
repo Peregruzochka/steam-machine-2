@@ -31,6 +31,7 @@ NAME_ROLE = Qt.UserRole + 1
 VALUE_ROLE = Qt.UserRole + 2
 UNIT_ROLE = Qt.UserRole + 3
 DECIMALS_ROLE = Qt.UserRole + 4
+CHART_VISIBLE_ROLE = Qt.UserRole + 5
 
 # Категории датчиков — задают порядок строк в UI как в дизайне
 CATEGORY_FLOW_COUNTER = 0   # счётчики воды Пульсар, м³
@@ -48,8 +49,34 @@ CATEGORY_TITLES = {
     CATEGORY_FLOW_RATE: 'Расходомер-счетчик "ВЗЛЕТ ТЭР"',
 }
 
-# Подписи серий графика (в дизайн-макете)
-CHART_LEGEND_NAMES = ["Т1", "Т2", "Т3", "Т4"]
+# Реальные диапазоны величин для нормировки на общую шкалу графика 0…100 %
+# (значения датчика приводятся к доле своего диапазона)
+RANGE_TEMPERATURE = (-40.0, 120.0)  # температура, °C
+RANGE_PRESSURE = (0.0, 10.0)        # давление, атм
+RANGE_PH = (0.0, 14.0)              # кислотность, pH (стандартная шкала)
+RANGE_FLOW = (0.0, 10.0)            # расход/объём счётчиков, м³ и м³/ч
+
+# Соответствие категории датчика и её рабочего диапазона
+CATEGORY_RANGES = {
+    CATEGORY_FLOW_COUNTER: RANGE_FLOW,
+    CATEGORY_PRESSURE: RANGE_PRESSURE,
+    CATEGORY_TEMPERATURE: RANGE_TEMPERATURE,
+    CATEGORY_PH: RANGE_PH,
+    CATEGORY_FLOW_RATE: RANGE_FLOW,
+}
+
+# кПа в одной атмосфере — для перевода показаний давления в единицы диапазона
+PRESSURE_KPA_IN_ATM = 101.325
+
+# Верх общей шкалы графика, % (все серии нормируются на 0…CHART_SCALE_MAX)
+CHART_SCALE_MAX = 100.0
+
+# Палитра цветов серий графика; цвет датчика = палитра[индекс строки]
+CHART_COLORS = [
+    "#e74c3c", "#3498db", "#2ecc71", "#f1c40f",
+    "#9b59b6", "#e67e22", "#1abc9c", "#ff6f91",
+    "#00bfff", "#8bc34a", "#ffd166", "#b39ddb",
+]
 
 # Период опроса устройств, сек
 POLL_INTERVAL = 2.0
@@ -66,6 +93,11 @@ class Sensor:
     key: tuple = field(default=())
     # Категория для сортировки и отбора серий графика
     category: int = CATEGORY_FLOW_RATE
+    # Параметры графика: рабочий диапазон (для нормировки), цвет серии, видимость
+    range_min: float = 0.0
+    range_max: float = 1.0
+    color: str = "#888888"
+    visible: bool = False
 
 
 def detect_category(protocol, reader):
@@ -124,11 +156,39 @@ def build_sensors(config_path="sensor.json"):
     # Сортировка по категории и порядку в конфигурации — как в дизайн-макете
     sensors.sort(key=lambda s: (s.category, s.key[1]))
     counters = {}
-    for sensor in sensors:
+    for index, sensor in enumerate(sensors):
         counters[sensor.category] = counters.get(sensor.category, 0) + 1
         sensor.name = CATEGORY_TITLES[sensor.category].format(n=counters[sensor.category])
+        # Рабочий диапазон для нормировки, цвет серии из палитры; по умолчанию
+        # на графике показываются только датчики температуры
+        sensor.range_min, sensor.range_max = CATEGORY_RANGES[sensor.category]
+        sensor.color = CHART_COLORS[index % len(CHART_COLORS)]
+        sensor.visible = sensor.category == CATEGORY_TEMPERATURE
     logger.info("Сформирован список датчиков: {} шт.", len(sensors))
     return sensors
+
+
+def normalize_value(value, range_min, range_max):
+    """Приводит значение к общей шкале графика 0…100 % по рабочему диапазону.
+
+    Значения вне диапазона ограничиваются краями шкалы.
+    """
+    span = range_max - range_min
+    if span <= 0:
+        logger.warning("Нулевой диапазон графика, значение нормировано в 0")
+        return 0.0
+    percent = (value - range_min) / span * CHART_SCALE_MAX
+    return max(0.0, min(CHART_SCALE_MAX, percent))
+
+
+def to_chart_units(sensor, value):
+    """Переводит показание датчика в единицы его рабочего диапазона графика.
+
+    Давление приходит в кПа, а диапазон задан в атм — выполняется перевод.
+    """
+    if sensor.category == CATEGORY_PRESSURE and "кПа" in (sensor.unit or ""):
+        return value / PRESSURE_KPA_IN_ATM
+    return value
 
 
 class SensorModel(QAbstractListModel):
@@ -152,6 +212,7 @@ class SensorModel(QAbstractListModel):
             VALUE_ROLE: b"value",
             UNIT_ROLE: b"unit",
             DECIMALS_ROLE: b"decimals",
+            CHART_VISIBLE_ROLE: b"chartVisible",
         }
 
     def data(self, index, role=Qt.DisplayRole):
@@ -167,7 +228,20 @@ class SensorModel(QAbstractListModel):
             return row.unit
         if role == DECIMALS_ROLE:
             return row.decimals
+        if role == CHART_VISIBLE_ROLE:
+            return row.visible
         return None
+
+    def set_visible(self, row_index, state):
+        """Включает/выключает отображение датчика на графике (тумблер в UI)."""
+        if not (0 <= row_index < len(self._rows)):
+            logger.error("Неверный индекс строки датчика: {}", row_index)
+            return
+        row = self._rows[row_index]
+        row.visible = bool(state)
+        model_index = self.index(row_index, 0)
+        self.dataChanged.emit(model_index, model_index, [CHART_VISIBLE_ROLE])
+        logger.info("Датчик «{}» на графике: {}", row.name, "вкл" if state else "выкл")
 
     def emit_values_changed(self):
         """Сообщает QML об обновлении всех значений."""
@@ -190,12 +264,11 @@ class SensorModel(QAbstractListModel):
         if changed:
             self.emit_values_changed()
 
-    def temperature_values(self):
-        """Возвращает [(индекс_строки, значение)] датчиков температуры для графика."""
+    def chart_series_info(self):
+        """Возвращает описание серий графика: имя, цвет и видимость каждой."""
         return [
-            (i, row.value)
-            for i, row in enumerate(self._rows)
-            if row.category == CATEGORY_TEMPERATURE
+            {"name": row.name, "color": row.color, "visible": row.visible}
+            for row in self._rows
         ]
 
     def rows(self):
@@ -316,6 +389,7 @@ class Controller(QObject):
     recordingChanged = Signal()
     heatingChanged = Signal()
     chartPoint = Signal(int, float, float)
+    chartSeriesChanged = Signal()
     statusMessage = Signal(str)
 
     def __init__(self, parent=None):
@@ -349,10 +423,17 @@ class Controller(QObject):
         """Признак включённого подогрева."""
         return self._heating
 
-    @Property("QVariantList", constant=True)
-    def chartLegendNames(self):
-        """Возвращает подписи серий графика."""
-        return CHART_LEGEND_NAMES
+    @Property("QVariantList", notify=chartSeriesChanged)
+    def chartSeriesInfo(self):
+        """Возвращает описание серий графика (имя, цвет, видимость) для QML."""
+        return self._sensors.chart_series_info()
+
+    @Slot(int, bool)
+    def setSensorVisible(self, row_index, state):
+        """Включает/выключает отображение датчика на графике (тумблер в списке)."""
+        logger.info("Тумблер графика: датчик {} -> {}", row_index, state)
+        self._sensors.set_visible(row_index, state)
+        self.chartSeriesChanged.emit()
 
     @Slot()
     def toggleRecording(self):
@@ -383,12 +464,19 @@ class Controller(QObject):
         self._thread.join(timeout=10)
 
     def _on_readings_ready(self, readings):
-        """Обрабатывает порцию показаний: обновляет модель и точки графика."""
+        """Обрабатывает порцию показаний: обновляет модель и точки графика.
+
+        На график выдаются только видимые датчики; каждое значение нормируется
+        на общую шкалу 0…100 % по рабочему диапазону своей величины.
+        """
         self._sensors.apply_readings(readings)
         t = time.monotonic() - self._t0
-        for series_idx, (row_index, value) in enumerate(self._sensors.temperature_values()):
-            if series_idx < len(CHART_LEGEND_NAMES):
-                self.chartPoint.emit(series_idx, t, value)
+        for row_index, row in enumerate(self._sensors.rows()):
+            if not row.visible:
+                continue
+            value = to_chart_units(row, row.value)
+            y = normalize_value(value, row.range_min, row.range_max)
+            self.chartPoint.emit(row_index, t, y)
 
     def _on_heating_done(self, success, state):
         """Логирует фактический результат команды подогрева."""

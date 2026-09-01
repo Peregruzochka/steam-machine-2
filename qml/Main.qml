@@ -54,16 +54,18 @@ ApplicationWindow {
                     delegate: RowLayout {
                         id: sensorRow
 
+                        required property int index
                         required property string name
                         required property real value
                         required property string unit
                         required property int decimals
+                        required property bool chartVisible
 
                         Layout.fillWidth: true
                         spacing: 8
 
                         Label {
-                            Layout.preferredWidth: 244
+                            Layout.preferredWidth: 190
                             text: sensorRow.name
                             color: "#dce6f5"
                             font.pixelSize: 13
@@ -93,6 +95,16 @@ ApplicationWindow {
                             text: sensorRow.unit
                             color: "#8fa3c0"
                             font.pixelSize: 13
+                        }
+
+                        // Тумблер вывода параметра на график
+                        Switch {
+                            checked: sensorRow.chartVisible
+                            onToggled: {
+                                ctrl.setSensorVisible(sensorRow.index, checked)
+                                if (!checked)
+                                    chart.resetSeries(sensorRow.index)
+                            }
                         }
                     }
                 }
@@ -177,10 +189,10 @@ ApplicationWindow {
                         axisY: ValueAxis {
                             id: axisY
                             min: 0
-                            max: 80
+                            max: 100
                             labelDecimals: 0
                             tickAnchor: 0
-                            tickInterval: 10
+                            tickInterval: 20
                             subTickCount: 1
                         }
 
@@ -195,32 +207,42 @@ ApplicationWindow {
                             gridVisible: true
                         }
 
-                        LineSeries {
-                            id: s0
-                            name: ctrl && ctrl.chartLegendNames.length > 0 ? ctrl.chartLegendNames[0] : "Т1"
-                            color: "#e74c3c"
-                            width: 2
-                        }
-                        LineSeries {
-                            id: s1
-                            name: ctrl && ctrl.chartLegendNames.length > 1 ? ctrl.chartLegendNames[1] : "Т2"
-                            color: "#3498db"
-                            width: 2
-                        }
-                        LineSeries {
-                            id: s2
-                            name: ctrl && ctrl.chartLegendNames.length > 2 ? ctrl.chartLegendNames[2] : "Т3"
-                            color: "#2ecc71"
-                            width: 2
-                        }
-                        LineSeries {
-                            id: s3
-                            name: ctrl && ctrl.chartLegendNames.length > 3 ? ctrl.chartLegendNames[3] : "Т4"
-                            color: "#f1c40f"
-                            width: 2
+                        // Серии создаются динамически — по одной на каждый датчик
+                        property var seriesRefs: []
+
+                        // Шаблон серии графика
+                        Component {
+                            id: seriesComp
+                            LineSeries {
+                                width: 2
+                            }
                         }
 
-                        property var seriesRefs: [s0, s1, s2, s3]
+                        // Создаёт серии графика по описанию из контроллера
+                        function buildSeries() {
+                            if (!ctrl)
+                                return
+                            for (var i = 0; i < seriesRefs.length; i++)
+                                removeSeries(seriesRefs[i])
+                            seriesRefs = []
+                            var infos = ctrl.chartSeriesInfo
+                            for (var n = 0; n < infos.length; n++) {
+                                var s = seriesComp.createObject(chart)
+                                s.name = infos[n].name
+                                s.color = infos[n].color
+                                addSeries(s)
+                                seriesRefs.push(s)
+                            }
+                        }
+
+                        Component.onCompleted: buildSeries()
+
+                        // Очищает точки серии датчика (при выключении тумблера)
+                        function resetSeries(seriesIdx) {
+                            var s = seriesRefs[seriesIdx]
+                            if (s !== null && s !== undefined)
+                                s.clear()
+                        }
 
                         Connections {
                             target: ctrl
@@ -240,23 +262,20 @@ ApplicationWindow {
                         }
                     }
 
-                    // Легенда (внизу окна графиков)
+                    // Легенда (внизу окна графиков): серия на каждый датчик
                     Row {
                         Layout.fillWidth: true
                         Layout.alignment: Qt.AlignHCenter
                         spacing: 16
 
                         Repeater {
-                            model: ctrl ? [
-                                { name: ctrl.chartLegendNames[0] ?? "Т1", color: "#e74c3c" },
-                                { name: ctrl.chartLegendNames[1] ?? "Т2", color: "#3498db" },
-                                { name: ctrl.chartLegendNames[2] ?? "Т3", color: "#2ecc71" },
-                                { name: ctrl.chartLegendNames[3] ?? "Т4", color: "#f1c40f" }
-                            ] : []
+                            model: ctrl ? ctrl.chartSeriesInfo : []
 
                             Row {
                                 spacing: 6
                                 topPadding: 2
+                                // Выключенные тумблером датчики приглушаются
+                                opacity: modelData.visible ? 1.0 : 0.35
 
                                 Rectangle {
                                     width: 14
