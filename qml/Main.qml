@@ -60,6 +60,7 @@ ApplicationWindow {
                         required property string unit
                         required property int decimals
                         required property bool chartVisible
+                        required property color seriesColor
 
                         Layout.fillWidth: true
                         spacing: 8
@@ -97,14 +98,20 @@ ApplicationWindow {
                             font.pixelSize: 13
                         }
 
+                        // Кружок с цветом серии этого датчика на графике
+                        Rectangle {
+                            Layout.preferredWidth: 14
+                            Layout.preferredHeight: 14
+                            radius: 7
+                            color: sensorRow.seriesColor
+                            border.color: "#33405a"
+                            border.width: 1
+                        }
+
                         // Тумблер вывода параметра на график
                         Switch {
                             checked: sensorRow.chartVisible
-                            onToggled: {
-                                ctrl.setSensorVisible(sensorRow.index, checked)
-                                if (!checked)
-                                    chart.resetSeries(sensorRow.index)
-                            }
+                            onToggled: ctrl.setSensorVisible(sensorRow.index, checked)
                         }
                     }
                 }
@@ -230,6 +237,7 @@ ApplicationWindow {
                                 var s = seriesComp.createObject(chart)
                                 s.name = infos[n].name
                                 s.color = infos[n].color
+                                s.visible = infos[n].visible
                                 addSeries(s)
                                 seriesRefs.push(s)
                             }
@@ -237,15 +245,19 @@ ApplicationWindow {
 
                         Component.onCompleted: buildSeries()
 
-                        // Очищает точки серии датчика (при выключении тумблера)
-                        function resetSeries(seriesIdx) {
-                            var s = seriesRefs[seriesIdx]
-                            if (s !== null && s !== undefined)
-                                s.clear()
-                        }
-
                         Connections {
                             target: ctrl
+
+                            // Синхронизирует видимость серий с тумблерами датчиков
+                            function onChartSeriesChanged() {
+                                var infos = ctrl.chartSeriesInfo
+                                for (var i = 0; i < chart.seriesRefs.length; i++) {
+                                    var s = chart.seriesRefs[i]
+                                    if (s === null || s === undefined)
+                                        continue
+                                    s.visible = infos[i].visible
+                                }
+                            }
 
                             function onChartPoint(seriesIdx, x, y) {
                                 var s = chart.seriesRefs[seriesIdx]
@@ -258,38 +270,6 @@ ApplicationWindow {
                                 }
                                 if (s.count > 1600)
                                     s.removeMultiple(0, s.count - 1600)
-                            }
-                        }
-                    }
-
-                    // Легенда (внизу окна графиков): серия на каждый датчик
-                    Row {
-                        Layout.fillWidth: true
-                        Layout.alignment: Qt.AlignHCenter
-                        spacing: 16
-
-                        Repeater {
-                            model: ctrl ? ctrl.chartSeriesInfo : []
-
-                            Row {
-                                spacing: 6
-                                topPadding: 2
-                                // Выключенные тумблером датчики приглушаются
-                                opacity: modelData.visible ? 1.0 : 0.35
-
-                                Rectangle {
-                                    width: 14
-                                    height: 4
-                                    radius: 2
-                                    color: modelData.color
-                                    anchors.verticalCenter: parent.verticalCenter
-                                }
-                                Label {
-                                    text: modelData.name
-                                    color: modelData.color
-                                    font.pixelSize: 12
-                                    anchors.verticalCenter: parent.verticalCenter
-                                }
                             }
                         }
                     }

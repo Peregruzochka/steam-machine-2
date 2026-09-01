@@ -32,6 +32,7 @@ VALUE_ROLE = Qt.UserRole + 2
 UNIT_ROLE = Qt.UserRole + 3
 DECIMALS_ROLE = Qt.UserRole + 4
 CHART_VISIBLE_ROLE = Qt.UserRole + 5
+COLOR_ROLE = Qt.UserRole + 6
 
 # Категории датчиков — задают порядок строк в UI как в дизайне
 CATEGORY_FLOW_COUNTER = 0   # счётчики воды Пульсар, м³
@@ -200,6 +201,7 @@ class SensorModel(QAbstractListModel):
             UNIT_ROLE: b"unit",
             DECIMALS_ROLE: b"decimals",
             CHART_VISIBLE_ROLE: b"chartVisible",
+            COLOR_ROLE: b"seriesColor",
         }
 
     def data(self, index, role=Qt.DisplayRole):
@@ -217,6 +219,8 @@ class SensorModel(QAbstractListModel):
             return row.decimals
         if role == CHART_VISIBLE_ROLE:
             return row.visible
+        if role == COLOR_ROLE:
+            return row.color
         return None
 
     def set_visible(self, row_index, state):
